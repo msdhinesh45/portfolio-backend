@@ -10,12 +10,36 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(helmet());
+// 🛡️ Security Headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https://*"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+    },
+  },
+}));
+
 app.use(morgan('dev'));
 app.use(cors({ origin: true }));
 app.use(express.json());
 
 app.get('/', (req, res) => res.json({ status: 'ok', message: 'Backend running' }));
+
+// 🎨 Preview Endpoint for Email Design
+app.get('/api/preview-email', (req, res) => {
+  const name = "John Doe";
+  const email = "john@example.com";
+  const message = "Hi Dhinesh! I am highly impressed by your portfolio's performance. Your HUD design is exceptional. Let's build something futuristic!";
+  
+  const type = req.query.type || 'owner';
+  
+  const html = type === 'owner' ? getOwnerTemplate(name, email, message) : getAckTemplate(name, email, message);
+  res.send(html);
+});
 
 app.post('/api/contact', async (req, res) => {
   const { name, email, message } = req.body || {};
@@ -38,649 +62,23 @@ app.post('/api/contact', async (req, res) => {
       auth: { user, pass },
     });
 
-    // Verify transporter connectivity/auth before sending
-    try {
-      await transporter.verify();
-      console.log('✅ Mail transporter verified');
-    } catch (verifyErr) {
-      console.error('Mail transporter verification failed:', verifyErr);
-      return res.status(500).json({ error: 'Mail transporter verification failed', detail: verifyErr && verifyErr.message });
-    }
-
-    // 🎨 Enhanced Owner Notification Email
     const ownerMail = {
       from: user,
       to: owner,
-      subject: `📧 New Contact Form Submission from ${name}`,
+      subject: `📡 SIGNAL DETECTED: ${name}`,
       text: `New message from ${name} <${email}>:\n\n${message}`,
-      html: `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap');
-        * { 
-            font-family: 'Inter', 'Poppins', Arial, sans-serif; 
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-            padding: 20px;
-            min-height: 100vh;
-        }
-        .container { 
-            max-width: 650px; 
-            margin: 0 auto;
-            background: white;
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-            border: 1px solid #e2e8f0;
-        }
-        .header { 
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-            text-align: center; 
-            color: white; 
-            padding: 45px 40px;
-            position: relative;
-        }
-        .header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 100" fill="%23ffffff" opacity="0.1"><polygon points="1000,100 1000,0 0,100"/></svg>');
-            background-size: cover;
-        }
-        .header h1 { 
-            margin: 0 0 15px 0; 
-            font-size: 2.2rem; 
-            font-weight: 600;
-            letter-spacing: -0.5px;
-            position: relative;
-            z-index: 2;
-        }
-        .header p {
-            font-size: 1.1rem;
-            opacity: 0.95;
-            font-weight: 400;
-            position: relative;
-            z-index: 2;
-        }
-        .emoji-badge {
-            font-size: 2.5rem;
-            margin-bottom: 15px;
-            display: block;
-            position: relative;
-            z-index: 2;
-        }
-        .content { 
-            padding: 40px 35px; 
-        }
-        .section-title {
-            font-size: 1.3rem;
-            font-weight: 600;
-            color: #1e293b;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .section-title::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: linear-gradient(90deg, #4f46e5, transparent);
-        }
-        .user-info { 
-            background: #f8fafc;
-            padding: 25px; 
-            border-radius: 12px; 
-            margin: 25px 0; 
-            border-left: 4px solid #4f46e5;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-        }
-        .info-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 12px;
-            padding: 10px 0;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        .info-item:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-        }
-        .info-icon {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 15px;
-            font-size: 1.1rem;
-            color: white;
-        }
-        .info-content {
-            flex: 1;
-        }
-        .info-label {
-            font-weight: 600;
-            color: #64748b;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 4px;
-        }
-        .info-value {
-            font-weight: 500;
-            color: #1e293b;
-            font-size: 1rem;
-        }
-        .message-box { 
-            background: #fefce8;
-            padding: 30px; 
-            border-radius: 12px; 
-            margin: 25px 0;
-            border: 1px solid #fef08a;
-            position: relative;
-        }
-        .message-box::before {
-            content: '"';
-            position: absolute;
-            top: 15px;
-            left: 20px;
-            font-size: 3rem;
-            color: #eab308;
-            font-family: serif;
-            line-height: 1;
-        }
-        .message-content {
-            font-style: italic;
-            color: #422006;
-            line-height: 1.6;
-            font-size: 1rem;
-            margin-left: 15px;
-        }
-        .action-box {
-            background: #f0f9ff;
-            padding: 25px;
-            border-radius: 12px;
-            margin: 25px 0;
-            border: 1px solid #7dd3fc;
-            text-align: center;
-        }
-        .action-button {
-            display: inline-block;
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-            color: white;
-            padding: 12px 28px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-weight: 500;
-            font-size: 0.95rem;
-            margin-top: 12px;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
-        }
-        .action-button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
-        }
-        .footer { 
-            text-align: center; 
-            color: #64748b; 
-            font-size: 0.85rem; 
-            margin-top: 40px;
-            padding-top: 25px;
-            border-top: 1px solid #e2e8f0;
-        }
-        .highlight { 
-            color: #4f46e5;
-            font-weight: 600;
-        }
-        a {
-            color: #4f46e5;
-            text-decoration: none;
-            font-weight: 500;
-        }
-        a:hover {
-            text-decoration: underline;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <div class="emoji-badge">📧</div>
-            <h1>New Contact Message</h1>
-            <p>Someone reached out through your website</p>
-        </div>
-        <div class="content">
-            <div class="section-title">
-                <span>Contact Details</span>
-            </div>
-            
-            <div class="user-info">
-                <div class="info-item">
-                    <div class="info-icon">👤</div>
-                    <div class="info-content">
-                        <div class="info-label">Name</div>
-                        <div class="info-value highlight">${name}</div>
-                    </div>
-                </div>
-                <div class="info-item">
-                    <div class="info-icon">📧</div>
-                    <div class="info-content">
-                        <div class="info-label">Email Address</div>
-                        <div class="info-value">
-                            <a href="mailto:${email}">${email}</a>
-                        </div>
-                    </div>
-                </div>
-                <div class="info-item">
-                    <div class="info-icon">⏰</div>
-                    <div class="info-content">
-                        <div class="info-label">Submission Time</div>
-                        <div class="info-value">${new Date().toLocaleString('en-US', { 
-                            weekday: 'long', 
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        })}</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="section-title">
-                <span>Message Content</span>
-            </div>
-            <div class="message-box">
-                <div class="message-content">
-                    ${message.replace(/\n/g, '<br>')}
-                </div>
-            </div>
-
-            <div class="action-box">
-                <h3 style="color: #0369a1; margin-bottom: 12px; font-size: 1.1rem;">Quick Action Required</h3>
-                <p style="color: #0369a1; margin-bottom: 15px; line-height: 1.5;">
-                    Click below to reply directly to ${name} and start the conversation!
-                </p>
-                <a href="mailto:${email}?subject=Re: Your website inquiry&body=Hi ${name}," class="action-button">
-                    Reply to ${name}
-                </a>
-            </div>
-
-            <div class="footer">
-                <p>Automated Notification System • This email was sent from your website contact form</p>
-                <p style="margin-top: 8px; font-size: 0.8rem; color: #94a3b8;">
-                    Powered by your contact form backend • ${new Date().getFullYear()}
-                </p>
-            </div>
-        </div>
-    </div>
-</body>
-</html>
-      `,
+      html: getOwnerTemplate(name, email, message),
     };
 
-    // 🎨 Enhanced Acknowledgement Email with Social Icons
     const ackMail = {
       from: user,
       to: email,
-      subject: `Thank You ${name}! Your Message Has Been Received`,
-      text: `Hi ${name},\n\nThanks for contacting me. I received your message:\n\n"${message}"\n\nI'll get back to you as soon as possible.\n\nConnect with me:\nLinkedIn: https://www.linkedin.com/in/dhineshkumar45\nInstagram: https://www.instagram.com/_ms_dhinesh_/\nPortfolio: https://portfolio-dhinesh.me/`,
-      html: `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap');
-        * { 
-            font-family: 'Inter', 'Poppins', Arial, sans-serif; 
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-            padding: 20px;
-            min-height: 100vh;
-        }
-        .container { 
-            max-width: 650px; 
-            margin: 0 auto;
-            background: white;
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-            border: 1px solid #e2e8f0;
-        }
-        .header { 
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-            text-align: center; 
-            color: white; 
-            padding: 50px 40px;
-            position: relative;
-        }
-        .header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 100" fill="%23ffffff" opacity="0.1"><circle cx="200" cy="50" r="30"/><circle cx="600" cy="30" r="20"/><circle cx="800" cy="70" r="25"/></svg>');
-            background-size: cover;
-        }
-        .header h1 { 
-            margin: 0 0 15px 0; 
-            font-size: 2.3rem; 
-            font-weight: 600;
-            letter-spacing: -0.5px;
-            position: relative;
-            z-index: 2;
-        }
-        .header p {
-            font-size: 1.15rem;
-            opacity: 0.95;
-            font-weight: 400;
-            position: relative;
-            z-index: 2;
-            line-height: 1.4;
-        }
-        .emoji-badge {
-            font-size: 3rem;
-            margin-bottom: 20px;
-            display: block;
-            position: relative;
-            z-index: 2;
-        }
-        .content { 
-            padding: 40px 35px; 
-        }
-        .welcome-section {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .welcome-text {
-            font-size: 1.1rem;
-            color: #475569;
-            line-height: 1.6;
-            margin-bottom: 20px;
-        }
-        .highlight-name {
-            color: #4f46e5;
-            font-weight: 600;
-            font-size: 1.2rem;
-        }
-        .message-preview { 
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-            color: white;
-            padding: 30px; 
-            border-radius: 12px; 
-            margin: 30px 0; 
-            position: relative;
-            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.2);
-        }
-        .message-preview::before {
-            content: '"';
-            position: absolute;
-            top: 15px;
-            left: 20px;
-            font-size: 3.5rem;
-            color: rgba(255,255,255,0.3);
-            font-family: serif;
-            line-height: 1;
-        }
-        .message-content {
-            font-style: italic;
-            line-height: 1.6;
-            font-size: 1.05rem;
-            margin-left: 15px;
-            position: relative;
-            z-index: 2;
-        }
-        .info-card {
-            background: #f8fafc;
-            padding: 25px;
-            border-radius: 12px;
-            margin: 25px 0;
-            border-left: 4px solid;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-        }
-        .card-next-steps {
-            border-left-color: #10b981;
-        }
-        .card-contact {
-            border-left-color: #3b82f6;
-        }
-        .card-title {
-            font-size: 1.2rem;
-            font-weight: 600;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            color: #1e293b;
-        }
-        .card-list {
-            list-style: none;
-            padding: 0;
-        }
-        .card-list li {
-            padding: 10px 0;
-            border-bottom: 1px solid #e2e8f0;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            color: #475569;
-            font-size: 0.95rem;
-        }
-        .card-list li:last-child {
-            border-bottom: none;
-        }
-        .card-list li::before {
-            content: '✓';
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-            color: white;
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.8rem;
-            font-weight: bold;
-        }
-        .social-links { 
-            margin: 30px 0; 
-            text-align: center;
-        }
-        .social-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #1e293b;
-            margin-bottom: 20px;
-        }
-        .social-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-        .social-button {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: white;
-            color: #475569;
-            padding: 12px 20px;
-            border-radius: 10px;
-            text-decoration: none;
-            font-weight: 500;
-            font-size: 0.9rem;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            border: 1px solid #e2e8f0;
-        }
-        .social-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-        }
-        .social-button.linkedin {
-            background: #0077b5;
-            color: white;
-            border-color: #0077b5;
-        }
-        .social-button.instagram {
-            background: linear-gradient(45deg, #405DE6, #5851DB, #833AB4, #C13584, #E1306C, #FD1D1D, #F56040, #F77737, #FCAF45, #FFDC80);
-            color: white;
-            border: none;
-        }
-        .social-button.portfolio {
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-            color: white;
-            border: none;
-        }
-        .social-icon {
-            font-size: 1.1rem;
-        }
-        .footer { 
-            text-align: center; 
-            color: #64748b; 
-            font-size: 0.85rem; 
-            margin-top: 40px;
-            padding-top: 25px;
-            border-top: 1px solid #e2e8f0;
-        }
-        .assurance {
-            background: #f0fdf4;
-            padding: 20px;
-            border-radius: 12px;
-            margin: 25px 0;
-            text-align: center;
-            border: 1px solid #bbf7d0;
-        }
-        .assurance-text {
-            color: #166534;
-            font-weight: 500;
-            font-size: 1rem;
-            margin: 0;
-        }
-        .status-badge {
-            text-align: center;
-            margin: 25px 0;
-        }
-        .status-text {
-            font-size: 1.3rem;
-            font-weight: 600;
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <div class="emoji-badge">✅</div>
-            <h1>Thank You ${name}!</h1>
-            <p>Your message has been received successfully</p>
-        </div>
-        <div class="content">
-            <div class="welcome-section">
-                <p class="welcome-text">
-                    Hello <span class="highlight-name">${name}</span>,
-                </p>
-                <p class="welcome-text">
-                    Thank you for reaching out! I appreciate you taking the time to get in touch and will respond to your message as soon as possible.
-                </p>
-            </div>
-
-            <div class="message-preview">
-                <div class="message-content">
-                    ${message.replace(/\n/g, '<br>')}
-                </div>
-            </div>
-
-            <div class="info-card card-next-steps">
-                <div class="card-title">
-                    <span>What Happens Next?</span>
-                </div>
-                <ul class="card-list">
-                    <li>I've received your message and will review it carefully</li>
-                    <li>I'll address all your questions and concerns</li>
-                    <li>You can expect a reply within 24-48 hours</li>
-                    <li>I'll provide any additional information you might need</li>
-                </ul>
-            </div>
-
-            <div class="assurance">
-                <p class="assurance-text">
-                    Your message is safe with me. I respect your privacy and will handle your information with care.
-                </p>
-            </div>
-
-            <div class="info-card card-contact">
-                <div class="card-title">
-                    <span>Stay Connected</span>
-                </div>
-                <ul class="card-list">
-                    <li>Feel free to reach out for any urgent inquiries</li>
-                    <li>You can add additional information by replying to this email</li>
-                    <li>Follow my social channels for updates and insights</li>
-                </ul>
-            </div>
-
-            <div class="social-links">
-                <div class="social-title">Connect With Me</div>
-                <div class="social-buttons">
-                    <a href="https://www.linkedin.com/in/dhineshkumar45" class="social-button linkedin">
-                        <span class="social-icon">💼</span>
-                        LinkedIn
-                    </a>
-                    <a href="https://www.instagram.com/_ms_dhinesh_/" class="social-button instagram">
-                        <span class="social-icon">📷</span>
-                        Instagram
-                    </a>
-                    <a href="https://portfolio-dhinesh.me/" class="social-button portfolio">
-                        <span class="social-icon">🌐</span>
-                        Portfolio
-                    </a>
-                </div>
-            </div>
-
-            <div class="footer">
-                <p>Automated Acknowledgement System • This email confirms I've successfully received your message</p>
-                <p style="margin-top: 12px; font-size: 0.8rem; color: #94a3b8; line-height: 1.4;">
-                    You're receiving this email because you contacted us through our website contact form.<br>
-                    If this wasn't you, please ignore this message or contact us immediately.
-                </p>
-                <p style="margin-top: 8px; font-size: 0.75rem; color: #cbd5e1;">
-                    Powered by your contact form backend • ${new Date().getFullYear()}
-                </p>
-            </div>
-        </div>
-    </div>
-</body>
-</html>
-      `,
+      subject: `✅ TRANSMISSION LOGGED: Hi ${name}`,
+      text: `Hi ${name},\n\nYour message has been received.`,
+      html: getAckTemplate(name, email, message),
     };
 
-    // Send notification to owner
     await transporter.sendMail(ownerMail);
-    // Send acknowledgement to sender
     await transporter.sendMail(ackMail);
 
     return res.status(200).json({ message: 'Emails sent successfully! 🎉' });
@@ -690,7 +88,171 @@ app.post('/api/contact', async (req, res) => {
   }
 });
 
+// 🎨 Helper: THE DEEP TECH VAULT - Owner Template
+function getOwnerTemplate(name, email, message) {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background-color: #020617; padding: 40px 10px; font-family: 'Plus Jakarta Sans', sans-serif; color: #f8fafc; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #0f172a; border-radius: 32px; border: 1px solid rgba(34, 211, 238, 0.1); overflow: hidden; box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.5); position: relative; }
+        .hud-corner { position: absolute; width: 20px; height: 20px; border-color: #22d3ee; border-style: solid; opacity: 0.5; }
+        .top-left { top: 20px; left: 20px; border-width: 2px 0 0 2px; }
+        .top-right { top: 20px; right: 20px; border-width: 2px 2px 0 0; }
+        .bottom-left { bottom: 20px; left: 20px; border-width: 0 0 2px 2px; }
+        .bottom-right { bottom: 20px; right: 20px; border-width: 0 2px 2px 0; }
+        .hud-header { padding: 60px 40px; background: radial-gradient(circle at top right, rgba(34, 211, 238, 0.15), transparent); border-bottom: 1px solid rgba(255, 255, 255, 0.05); text-align: center; }
+        .system-status { display: inline-flex; align-items: center; gap: 8px; background: rgba(34, 211, 238, 0.05); padding: 4px 12px; border-radius: 20px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #22d3ee; letter-spacing: 0.1em; margin-bottom: 20px; border: 1px solid rgba(34, 211, 238, 0.2); }
+        .status-dot { width: 6px; height: 6px; background: #22d3ee; border-radius: 50%; box-shadow: 0 0 8px #22d3ee; }
+        .title { font-size: 28px; font-weight: 800; color: #fff; }
+        .content { padding: 50px 40px; }
+        .data-card { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 24px; padding: 30px; margin-bottom: 30px; }
+        .data-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 8px; }
+        .data-value { font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 20px; }
+        .message-content { font-family: 'JetBrains Mono', monospace; font-size: 14px; line-height: 1.7; color: #cbd5e1; background: rgba(0, 0, 0, 0.2); padding: 25px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.03); }
+        .action-container { text-align: center; margin-top: 40px; }
+        .primary-btn { display: inline-block; background: linear-gradient(135deg, #22d3ee 0%, #0ea5e9 100%); color: #020617 !important; text-decoration: none; padding: 18px 40px; border-radius: 16px; font-weight: 800; font-size: 14px; text-transform: uppercase; box-shadow: 0 10px 20px rgba(34, 211, 238, 0.2); }
+        .footer { padding: 40px; background: rgba(0, 0, 0, 0.15); text-align: center; border-top: 1px solid rgba(255, 255, 255, 0.03); font-size: 11px; color: #475569; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="hud-corner top-left"></div><div class="hud-corner top-right"></div><div class="hud-corner bottom-left"></div><div class="hud-corner bottom-right"></div>
+        <div class="hud-header">
+            <div class="system-status"><div class="status-dot"></div>SYSTEM SECURE // SIGNAL 100%</div>
+            <h1 class="title">New Intel Received</h1>
+        </div>
+        <div class="content">
+            <div class="data-card">
+                <p class="data-label">Origin Entity</p><p class="data-value" style="color: #22d3ee;">${name}</p>
+                <p class="data-label">Contact Channel</p><p class="data-value"><a href="mailto:${email}" style="color: #fff; text-decoration: none;">${email}</a></p>
+            </div>
+            <p class="data-label" style="color: #a855f7;">Decrypted Transmission</p>
+            <div class="message-content">${message}</div>
+            <div class="action-container"><a href="mailto:${email}" class="primary-btn">Begin Response Sequence</a></div>
+        </div>
+        <div class="footer">DHINESH KUMAR OS v2.4 // PORTFOLIO CORE // ${new Date().getFullYear()}</div>
+    </div>
+</body>
+</html>`;
+}
+
+// 🎨 Helper: THE DEEP TECH VAULT - Acknowledgement Template
+function getAckTemplate(name, email, message) {
+  // Ultra-vibrant Iconify URLs with forced white for GitHub
+  const logos = {
+    linkedin: "https://api.iconify.design/logos:linkedin-icon.svg",
+    github: "https://api.iconify.design/simple-icons:github.svg?color=%23ffffff",
+    instagram: "https://api.iconify.design/skill-icons:instagram.svg",
+    portfolio: "https://api.iconify.design/lucide:globe.svg?color=%2322d3ee"
+  };
+
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background-color: #020617; padding: 40px 10px; font-family: 'Plus Jakarta Sans', sans-serif; color: #f8fafc; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #0f172a; border-radius: 32px; border: 1px solid rgba(168, 85, 247, 0.1); overflow: hidden; box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.5); }
+        .header { padding: 70px 40px; background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); text-align: center; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+        .icon-box { width: 80px; height: 80px; background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.2); border-radius: 24px; display: flex; align-items: center; justify-content: center; margin: 0 auto 30px; font-size: 40px; }
+        .title { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 10px; }
+        .title span { color: #22d3ee; }
+        .subtitle { font-size: 12px; color: #94a3b8; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.1em; }
+        .content { padding: 50px 40px; }
+        .greeting { font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 20px; }
+        .greeting span { color: #a855f7; }
+        .text { font-size: 16px; color: #94a3b8; line-height: 1.6; margin-bottom: 30px; }
+        .preview-label { font-size: 10px; font-weight: 700; color: #22d3ee; text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 15px; display: block; }
+        .message-preview { background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.03); padding: 25px; border-radius: 20px; font-style: italic; color: #cbd5e1; font-size: 14px; margin-bottom: 40px; border-left: 3px solid #a855f7; }
+        .social-title { font-size: 11px; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 30px; text-align: center; }
+        
+        .social-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .social-cell { text-align: center; padding: 10px; width: 25%; }
+        .social-link { text-decoration: none; display: block; }
+        .social-icon-box { 
+            width: 64px; height: 64px; 
+            background: rgba(255, 255, 255, 0.03); 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            border-radius: 20px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            margin: 0 auto 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .social-icon-img { display: block; width: 34px; height: 34px; }
+        .social-label { font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; }
+        
+        .footer { padding: 40px; text-align: center; font-size: 11px; color: #475569; border-top: 1px solid rgba(255, 255, 255, 0.03); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="icon-box">🛡️</div>
+            <h1 class="title">Signal <span>Locked.</span></h1>
+            <p class="subtitle">CONNECTION ESTABLISHED // SECURE CHANNEL</p>
+        </div>
+        <div class="content">
+            <h2 class="greeting">Hello, <span>${name}</span>!</h2>
+            <p class="text">Your transmission has reached my primary terminal. I've successfully logged your message into my response queue.</p>
+            <span class="preview-label">Transmission Log:</span>
+            <div class="message-preview">"${message}"</div>
+            
+            <div class="social-title">Active Channels</div>
+            <table class="social-table">
+                <tr>
+                    <td class="social-cell">
+                        <a href="https://linkedin.com/in/dhineshkumar45" class="social-link">
+                            <div class="social-icon-box">
+                                <img src="${logos.linkedin}" class="social-icon-img" alt="">
+                            </div>
+                            <span class="social-label">LinkedIn</span>
+                        </a>
+                    </td>
+                    <td class="social-cell">
+                        <a href="https://github.com/msdhinesh45" class="social-link">
+                            <div class="social-icon-box">
+                                <img src="${logos.github}" class="social-icon-img" alt="">
+                            </div>
+                            <span class="social-label">GitHub</span>
+                        </a>
+                    </td>
+                    <td class="social-cell">
+                        <a href="https://instagram.com/_ms_dhinesh_" class="social-link">
+                            <div class="social-icon-box">
+                                <img src="${logos.instagram}" class="social-icon-img" alt="">
+                            </div>
+                            <span class="social-label">Instagram</span>
+                        </a>
+                    </td>
+                    <td class="social-cell">
+                        <a href="https://portfolio-dhinesh.me" class="social-link">
+                            <div class="social-icon-box">
+                                <img src="${logos.portfolio}" class="social-icon-img" alt="">
+                            </div>
+                            <span class="social-label">Portfolio</span>
+                        </a>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <div class="footer">DHINESH KUMAR // PORTFOLIO v2.4 // © ${new Date().getFullYear()}</div>
+    </div>
+</body>
+</html>`;
+}
+
 app.listen(PORT, () => {
   console.log(`🚀 Backend server listening on http://localhost:${PORT}`);
   console.log(`⭐ Contact endpoint: http://localhost:${PORT}/api/contact`);
+  console.log(`📸 Preview endpoint: http://localhost:${PORT}/api/preview-email?type=owner`);
 });
